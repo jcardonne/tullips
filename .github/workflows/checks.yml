@@ -41,5 +41,5 @@ jobs:
       - name: PostgreSQL backup and restore regression
         run: |
           docker build -t tullips-updater-test updater
-          docker run --rm --network host -e UPDATER_TEST_DATABASE_URL="$TEST_DATABASE_URL" -v "$PWD/updater:/tests:ro" --entrypoint python3 tullips-updater-test -m unittest discover -s /tests -p 'test_*.py' -v
+          docker run --rm --network host -e UPDATER_TEST_DATABASE_URL="$TEST_DATABASE_URL" -v "$PWD:/src:ro" -w /src --entrypoint python3 tullips-updater-test -m unittest discover -s updater -p 'test_*.py' -v
       - run: python3 scripts/setup.py && docker compose config --quiet
