@@ -160,6 +160,13 @@ class UpdaterTests(unittest.TestCase):
         self.assertIn('watch', role['rules'][0]['verbs'])
         self.assertEqual(role['rules'][0]['resourceNames'], ['tullips-api','tullips-web','tullips-worker'])
 
+    def test_successful_cli_restore_exits_successfully(self):
+        import io
+        from update import main
+        self.u.restore = lambda **kwargs: self.u.save(phase='rolled_back')
+        with patch('update.Updater', return_value=self.u), patch('sys.argv', ['update.py', 'restore', '--confirm-version', '1.0.0']), contextlib.redirect_stdout(io.StringIO()):
+            main()  # SystemExit(1) would fail this test.
+
     def test_settings_strict_boolean_and_status_no_secrets(self):
         with self.assertRaises(ValueError): self.u.settings('true')
         self.u.settings(True)

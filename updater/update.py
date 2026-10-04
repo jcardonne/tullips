@@ -509,7 +509,8 @@ def main():
         elif args.command == "admin": updater.admin(args.email)
         elif args.command == "automatic": updater.settings(args.value == "on")
         print(json.dumps(updater.status(), indent=2))
-        if updater.state()["phase"] in {"failed", "rolled_back", "awaiting_restore", "recovery_failed"} and args.command in {"update", "restore", "recover"}:
+        phase = updater.state()["phase"]
+        if args.command == "update" and phase != "complete" or args.command in {"restore", "recover"} and phase not in TERMINAL - {"failed"}:
             raise SystemExit(1)
 
 
