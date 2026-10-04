@@ -70,7 +70,7 @@ class Deployment:
         actual = {}
         for file in source.rglob("*"):
             relative = file.relative_to(source)
-            if any(part in {"node_modules", ".output", ".git", ".tanstack", "bin"} for part in relative.parts) or str(relative) == "source-files.json":
+            if any(part in {"node_modules", ".output", ".git", ".tanstack", "bin"} for part in relative.parts) or str(relative) in {"source-files.json", ".build-complete"}:
                 continue
             if file.is_file(): actual[str(relative)] = sha(file)
         if actual != checksums:
@@ -101,7 +101,8 @@ class Deployment:
         release = Path(self.c["project_dir"]) / "releases" / m["version"]
         if release.exists():
             self.check_source(release)
-            return
+            if (release / ".build-complete").exists(): return
+            shutil.rmtree(release)  # An interrupted build of verified, unmodified source is safe to rebuild.
         archive = self.u.root / "downloads" / m["version"] / "source.tar.gz"
         download(m["download_base"] + "/source.tar.gz", archive)
         if sha(archive) != m["source_sha256"]: raise ValueError("Source archive checksum does not match the signed release")
@@ -119,6 +120,7 @@ class Deployment:
                 run(["go", "build", "-o", release / "bin" / binary, "./cmd/" + binary], cwd=release / "backend")
             run(["npm", "ci"], cwd=release / "web")
             run(["npm", "run", "build"], cwd=release / "web")
+            (release / ".build-complete").touch(mode=0o644)
         except Exception:
             shutil.rmtree(release)
             raise

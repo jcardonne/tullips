@@ -116,6 +116,7 @@ def main():
         raise ValueError('Run this installer as root on the Linux application server')
     project = Path(args.directory).resolve()
     project.mkdir(parents=True, exist_ok=True, mode=0o755)
+    if args.mode == 'systemd': project.chmod(0o755)
     state = project / '.tullips-updater'
     state.mkdir(exist_ok=True, mode=0o700)
     config_path = state / 'updater.json'
