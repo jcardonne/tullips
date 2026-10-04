@@ -1,0 +1,45 @@
+name: Checks
+on:
+  workflow_call:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: test-only-password
+          POSTGRES_DB: tullips_test
+        ports: ['5432:5432']
+        options: --health-cmd pg_isready --health-interval 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://postgres:test-only-password@localhost:5432/tullips_test?sslmode=disable
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: go test ./... && go vet ./...
+        working-directory: backend
+      - run: npm ci && npm run build && npm run typecheck && npm test
+        working-directory: web
+      - run: python3 -m unittest discover -s updater -p 'test_*.py' -v
+      - name: PostgreSQL backup and restore regression
+        run: |
+          docker build -t tullips-updater-test updater
+          docker run --rm --network host -e UPDATER_TEST_DATABASE_URL="$TEST_DATABASE_URL" -v "$PWD/updater:/tests:ro" --entrypoint python3 tullips-updater-test -m unittest discover -s /tests -p 'test_*.py' -v
+      - run: python3 scripts/setup.py && docker compose config --quiet

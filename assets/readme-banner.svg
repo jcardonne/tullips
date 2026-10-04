@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="320" viewBox="0 0 1280 320" role="img" aria-labelledby="title desc">
+<title id="title">Tullips</title><desc id="desc">Your relationships. Your workspace. Your infrastructure.</desc>
+<rect width="1280" height="320" rx="24" fill="#f6f5ee"/>
+<path d="M870 320C900 180 940 30 1150 20M920 320C940 210 1100 130 1280 160" fill="none" stroke="#dde3d2" stroke-width="2"/>
+<circle cx="1100" cy="175" r="128" fill="#eef0e4"/>
+<g transform="translate(1050 65)" fill="none" stroke-width="3">
+<path d="M47 120C35 86 1 45 10 14L49 36L78 3L98 43L122 20C139 86 117 128 47 120Z" fill="#f0dadd" stroke="#cd8fa1"/>
+<path d="M10 14C47 40 65 53 66 120M122 20C92 46 78 62 77 115" stroke="#cd8fa1"/>
+<path d="M73 116L83 222M78 156C100 126 124 119 144 118C143 154 111 178 80 180M79 176C56 149 28 146 9 155C25 185 49 195 81 190" stroke="#7d966d"/>
+</g>
+<text x="68" y="85" font-family="Arial, Helvetica, sans-serif" font-size="13" letter-spacing="4" fill="#708269">OPEN SOURCE · SELF-HOSTED · MIT LICENSED</text>
+<text x="64" y="176" font-family="Arial, Helvetica, sans-serif" font-size="86" font-weight="700" letter-spacing="-5" fill="#294b38">tullips</text>
+<text x="68" y="227" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#4c5d4a">Your relationships. Your workspace. Your infrastructure.</text>
+<text x="68" y="272" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#71806b">Find the right people. Start better conversations.</text>
+</svg>

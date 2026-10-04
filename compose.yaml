@@ -1,0 +1,133 @@
+name: tullips
+x-app-env: &app-env
+  DATABASE_URL: postgres://tullips:${POSTGRES_PASSWORD:?Run python3 scripts/setup.py}@postgres:5432/tullips?sslmode=disable
+  APP_URL: ${APP_URL:-http://localhost:3000}
+  INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:?Run python3 scripts/setup.py}
+  ENCRYPTION_KEY: ${ENCRYPTION_KEY:?Run python3 scripts/setup.py}
+  DEPLOYMENT_MODE: ${DEPLOYMENT_MODE:-selfhosted}
+  UPDATER_URL: http://updater:8090
+  UPDATER_TOKEN: ${UPDATER_TOKEN:-}
+  LIVE_SENDS: ${LIVE_SENDS:-false}
+  GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+  GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+  MICROSOFT_CLIENT_ID: ${MICROSOFT_CLIENT_ID:-}
+  MICROSOFT_CLIENT_SECRET: ${MICROSOFT_CLIENT_SECRET:-}
+  LLM_BASE_URL: ${LLM_BASE_URL:-http://litellm:4000/v1}
+  LLM_API_KEY: ${LLM_API_KEY:-}
+  LLM_MODEL: ${LLM_MODEL:-}
+  LLM_INPUT_PRICE_PER_MILLION: ${LLM_INPUT_PRICE_PER_MILLION:-0}
+  LLM_OUTPUT_PRICE_PER_MILLION: ${LLM_OUTPUT_PRICE_PER_MILLION:-0}
+  AI_CREDITS_PER_DOLLAR: ${AI_CREDITS_PER_DOLLAR:-1000}
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: tullips
+      POSTGRES_USER: tullips
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run python3 scripts/setup.py}
+    volumes: [postgres:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U tullips -d tullips]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+    restart: unless-stopped
+  api:
+    build: ./backend
+    stop_grace_period: 330s
+    environment:
+      <<: *app-env
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      STRIPE_WORKSPACE_PRICE_ID: ${STRIPE_WORKSPACE_PRICE_ID:-}
+      STRIPE_ACCOUNT_PRICE_ID: ${STRIPE_ACCOUNT_PRICE_ID:-}
+      STRIPE_TOPUP_PRICE_ID: ${STRIPE_TOPUP_PRICE_ID:-}
+      MONTHLY_AI_CREDITS: ${MONTHLY_AI_CREDITS:-0}
+      TOPUP_AI_CREDITS: ${TOPUP_AI_CREDITS:-0}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      MICROSOFT_CLIENT_ID: ${MICROSOFT_CLIENT_ID:-}
+      MICROSOFT_CLIENT_SECRET: ${MICROSOFT_CLIENT_SECRET:-}
+    depends_on:
+      postgres: {condition: service_healthy}
+      auth-migrate: {condition: service_completed_successfully}
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, http://127.0.0.1:8080/healthz]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+    restart: unless-stopped
+  worker:
+    build: ./backend
+    stop_grace_period: 330s
+    command: [/app/worker]
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, http://127.0.0.1:8081/healthz]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+    environment: *app-env
+    depends_on:
+      postgres: {condition: service_healthy}
+      api: {condition: service_healthy}
+    restart: unless-stopped
+  web:
+    build: ./web
+    stop_grace_period: 90s
+    ports: ["127.0.0.1:3000:3000"]
+    environment:
+      DATABASE_URL: postgres://tullips:${POSTGRES_PASSWORD}@postgres:5432/tullips?sslmode=disable
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?Run python3 scripts/setup.py}
+      BETTER_AUTH_URL: ${APP_URL:-http://localhost:3000}
+      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET}
+      API_URL: http://api:8080
+      PORT: 3000
+      HOST: 0.0.0.0
+    depends_on:
+      postgres: {condition: service_healthy}
+      api: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+    restart: unless-stopped
+  migrate:
+    build: ./backend
+    command: [/app/migrate]
+    environment: *app-env
+    depends_on:
+      postgres: {condition: service_healthy}
+    restart: "no"
+  auth-migrate:
+    build: ./web
+    command: [npm, run, "auth:migrate"]
+    environment:
+      <<: *app-env
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+      BETTER_AUTH_URL: ${APP_URL:-http://localhost:3000}
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+    restart: "no"
+  updater:
+    build: ./updater
+    command: [--config, "${TULLIPS_PROJECT_DIR:-.}/.tullips-updater/updater.json", serve]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - "${TULLIPS_PROJECT_DIR:-.}:${TULLIPS_PROJECT_DIR:-/workspace}"
+    depends_on:
+      postgres: {condition: service_healthy}
+    restart: unless-stopped
+  litellm:
+    image: ghcr.io/berriai/litellm:main-stable
+    profiles: [ai]
+    command: [--config, /app/config.yaml, --port, '4000']
+    volumes: [./litellm.yaml:/app/config.yaml:ro]
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      LITELLM_MODEL: ${LITELLM_MODEL:-openai/gpt-4.1-mini}
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:-}
+    restart: unless-stopped
+volumes:
+  postgres:

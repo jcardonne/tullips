@@ -1,0 +1,4 @@
+# Optional: expose PostgreSQL only on loopback for native Go/web development.
+services:
+  postgres:
+    ports: ["127.0.0.1:54329:5432"]
